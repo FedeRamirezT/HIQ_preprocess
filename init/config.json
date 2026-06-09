@@ -1,0 +1,207 @@
+{
+    "global": {
+        "channels_to_include": [
+            "Fp1","Fpz","Fp2","F7","F3","Fz","F4","F8",
+            "FC5","FC1","FC2","FC6","T7","C3","Cz","C4","T8",
+            "CP5","CP1","CP2","CP6","P7","P3","Pz","P4","P8",
+            "POz","O1","O2","AF7","AF3","AF4","AF8",
+            "F5","F1","F2","F6","FC3","FCz","FC4",
+            "C5","C1","C2","C6","CP3","CP4",
+            "P5","P1","P2","P6","PO3","PO4",
+            "FT7","FT8","TP7","TP8","PO7","PO8"
+        ],
+        "channels_to_exclude": [
+            "VEOGL","VEOGU","HEOGR","HEOGL","M1","M2"
+        ],
+        "line_freq": 50,
+        "notch_frequencies": [50,100,150,200,250],
+        "verbose": "full"
+    },
+
+    "visualization": {
+        "low_freq": 2,
+        "high_freq": 100
+    },
+
+    "component_estimation": {
+        "low_freq": 1,
+        "high_freq": 100,
+        "resample_frequency": 500,
+        "crop_seconds": 10,
+        "unclear_threshold": 0.7,
+        "epoch_definition": {
+            "mode": "fixed",
+            "length": 1,
+            "overlap": 0,
+            "padding": 0,
+            "reject_by_annotation": 1
+        }
+    },
+
+    "preprocess": {
+        "standardization": {
+            "format": "BrainVision",
+            "overwrite": 1
+        },
+        "badchannel_detection": {
+            "notch_frequencies": [50,100,150,200,250],
+            "crop_seconds": 10,
+            "high_impedance": {
+                "threshold": 200
+            },
+            "impossible_amplitude": {
+                "low_freq": 2,
+                "high_freq": 150,
+                "low_threshold": 0.000001,
+                "high_threshold": 0.0005,
+                "percentage_threshold": 0.5,
+                "epoch_definition": {
+                    "mode": "fixed",
+                    "length": 1,
+                    "overlap": 0,
+                    "padding": 0,
+                    "reject_by_annotation": 1
+                }
+            },
+            "component_detection": {
+                "threshold": 5,
+                "low_freq": 2,
+                "high_freq": 45,
+                "percentage_threshold": 0.5,
+                "epoch_definition": {
+                    "mode": "fixed",
+                    "length": 2,
+                    "overlap": 0,
+                    "padding": 0,
+                    "reject_by_annotation": 1
+                }
+            },
+            "gel_bridge": {
+                "threshold": 0.999,
+                "low_freq": 8,
+                "high_freq": 45,
+                "neighbour_distance": 0.05,
+                "seq_threshold": 0.5
+            },
+            "high_deviation": {
+                "threshold": 5,
+                "low_freq": 2,
+                "high_freq": 45,
+                "percentage_threshold": 0.5,
+                "epoch_definition": {
+                    "mode": "fixed",
+                    "length": 4,
+                    "overlap": 0,
+                    "padding": 0,
+                    "reject_by_annotation": 1
+                }
+            }
+        },
+        "artifact_detection":{
+		"notch_frequencies": [50, 100, 150, 200, 250],
+        "frontal_channels": ["Fp1","Fpz","Fp2"],
+		"muscle":{
+			"low_freq":110,
+			"high_freq":145,
+			"threshold": 7
+		},
+		"sensor":{
+			"low_freq":5,
+			"high_freq":10,
+			"threshold": 7,
+            "epoch_definition":{
+                "mode": "fixed",
+				"length": 0.05,
+				"overlap": 0,
+				"padding": 0,
+                "reject_by_annotation": 1
+			}
+		},
+		"other":{
+			"low_freq":2,
+			"high_freq":45,
+			"threshold": 0.0005,
+            "epoch_definition":{
+                "mode": "fixed",
+                "length": 0.5,
+                "overlap": 0,
+                "padding": 0,
+                "reject_by_annotation": 1
+              }
+		},
+		"EOG":{
+			"low_freq":0.5,
+			"high_freq":2,
+			"threshold": 7,
+            "epoch_definition":{
+                "mode": "fixed",
+				"length": 0.5,
+				"overlap": 0.25,
+				"padding": 0,
+                "reject_by_annotation": 1
+			}
+		}
+	}
+    },
+
+    "source_reconstruction": {
+        "epoch_definition": {
+            "mode": "fixed",
+            "length": 8,
+            "overlap": 0,
+            "padding": 0,
+            "reject_by_annotation": 1
+        },
+        "forward": {
+            "use_template": 1,
+            "template": {
+                "subject": "fsaverage",
+                "trans": "fsaverage",
+                "bem": "fsaverage-5120-5120-5120-bem-sol.fif",
+                "mri": "T1.mgz",
+                "surf": "inner_skull.surf",
+                "spacing": "ico4"
+            }
+        },
+        "covariance": {
+            "method": "oas",
+            "rank": "info"
+        },
+        "inverse": {
+            "method": "lcmv",
+            "reg": 0.05,
+            "pick_ori": "max-power",
+            "weight_norm": "nai"
+        }
+    },
+
+    "feature_extraction": {
+        "relative_power_spectrum": {
+            "epoch_definition": {
+                "mode": "events",
+                "event_code": 32,
+                "tmin": 0,
+                "tmax": 1,
+                "baseline": null,
+                "reject_by_annotation": 1
+            },
+            "overwrite": 1,
+            "sensor": {
+                "method": "multitaper",
+                "freq_limits":[0.5, 50],
+                "bandwidth": 2,
+                "adaptive" : 1,
+                "normalization": "length",
+                "low_bias": 1
+            },
+            "source": {
+                "method": "multitaper",
+                "freq_limits":[0.5, 50],
+                "bandwidth": 2,
+                "adaptive" : 1,
+                "normalization": "length",
+                "low_bias": 1
+            }
+        }
+    }
+}
