@@ -7,14 +7,15 @@ Federico Ramírez-Toraño
 """
 
 # Imports
-from dev.init.init import init
+from init.init import init
 from sEEGnal.tools.bids_tools import build_BIDS_object
 from sEEGnal.standardize.standardize import standardize
 from sEEGnal.preprocess.artifact_detection import artifact_detection
 from sEEGnal.preprocess.badchannel_detection import badchannel_detection
+from scripts.shared.review_ICs import review_ICs
 
-# What step to run: standardize, badchannel, artifact
-run = [1, 1, 1]
+# What step to run: standardize, badchannel, artifact, review IC
+run = [0, 0, 1, 1]
 
 # Init the database
 config, files, sub, ses, task = init()
@@ -56,6 +57,13 @@ for current_index in index:
         print(' Result ' + results['result'])
         if results['result'] == 'error' and config['global']['verbose'] == 'full':
             print(results['details'])
+
+    if run[3]:
+        print('   Review ICs', end='. ')
+        results = review_ICs(config, BIDS)
+        '''print(' Result ' + results['result'])
+        if results['result'] == 'error' and config['global']['verbose'] == 'full':
+            print(results['details'])'''
 
     print()
     print()

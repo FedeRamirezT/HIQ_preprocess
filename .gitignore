@@ -46,3 +46,6 @@ Thumbs.db
 *.jpeg
 *.tiff
 *.svg
+
+# Files
+*.xlsx

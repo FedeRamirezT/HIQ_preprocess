@@ -28,7 +28,7 @@ def init():
     files = [os.path.basename(file) for file in files]
 
     # Extract the info
-    pattern = "HIQ_([0-9]{3})_([0-9])_(1EO|2EC|3EO|4EC|1EC|2WM|3EC)_.*"
+    pattern = "HIQ_([0-9]{3})_([0-9])_(1EC)_.*"
     matches = [re.findall(pattern, file) for file in files]
     matches, files = zip(*[(match, file) for match, file in zip(matches, files) if match])
     sub = [match[0][0] for match in matches]
