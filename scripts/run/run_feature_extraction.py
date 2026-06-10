@@ -7,13 +7,17 @@ Federico Ramírez-Toraño
 """
 
 # Imports
-from dev.init.init import init
+from init.init import init
+from scripts.shared.check_valid import check_valid
 from sEEGnal.tools.bids_tools import build_BIDS_object
 from sEEGnal.feature_extraction.feature_extraction import feature_extraction
 
 
 # Init the database
 config, files, sub, ses, task = init()
+
+# Keep only the valid ones
+files, sub, ses, task = check_valid(files, sub, ses, task)
 
 # List of subjects with errors
 errors = []

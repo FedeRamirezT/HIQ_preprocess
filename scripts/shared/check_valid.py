@@ -29,14 +29,13 @@ def check_valid(files, sub, ses, task):
     for ifile,current_file in enumerate(files):
 
         # Look for the file in the Excel
-        current_file = current_file[:-5]
-        index = [i for i in range(len(qc_data)) if current_file == qc_data['archivo'][i]]
+        index = [i for i in range(len(qc_data)) if current_file == qc_data['file'][i]]
 
         # Check if valid
         if len(index) == 1:
 
             index = index[0]
-            if qc_data['Valid'][index] == 0:
+            if qc_data['valid'][index] == 0:
                 qc_mask[ifile] = False
 
         else:
