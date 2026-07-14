@@ -192,6 +192,14 @@
                 "adaptive": 1,
                 "normalization": "length",
                 "low_bias": 1
+            },
+            "source": {
+                "method": "multitaper",
+                "freq_limits":[0.5, 50],
+                "bandwidth": 2,
+                "adaptive": 1,
+                "normalization": "length",
+                "low_bias": 1
             }
         },
         "plv": {
@@ -203,7 +211,7 @@
                 "padding": 0,
                 "reject_by_annotation": 1
             },
-            "sensor": {
+            "source": {
                 "freq_bands_name": ["delta","theta","alpha","low_beta","high_beta","gamma"],
                 "freq_bands_limits":[
                     [2, 4],
@@ -224,7 +232,7 @@
                 "padding": 0,
                 "reject_by_annotation": 1
             },
-            "sensor": {
+            "source": {
                 "freq_bands_name": ["delta","theta","alpha","low_beta","high_beta","gamma"],
                 "freq_bands_limits":[
                     [2, 4],

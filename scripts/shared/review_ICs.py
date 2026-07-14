@@ -12,7 +12,6 @@ import os
 
 import h5py
 import numpy
-import matplotlib.pyplot as plt
 
 import sEEGnal.tools.mne_tools as mne_tools
 import sEEGnal.tools.bids_tools as bids_tools
@@ -150,7 +149,7 @@ def review_ICs(config, BIDS):
         '''
 
     # Change the original labels if needed
-    labels = ['brain', 'muscle', 'eog', 'ecg', 'line_noise', 'ch_noise']
+    labels_to_check = ['brain', 'muscle', 'eog', 'ecg', 'other', 'ch_noise']
 
     # Low
     if len(index_low) > 0:
@@ -161,14 +160,18 @@ def review_ICs(config, BIDS):
         for iIC in index_low:
 
             # Remove from the original category
-            for current_label in labels:
+            for current_label in labels_to_check:
 
-                if iIC in sobi.labels_[current_label]:
-
+                if (
+                        current_label in sobi.labels_
+                        and iIC in sobi.labels_[current_label]
+                ):
                     sobi.labels_[current_label].remove(iIC)
                     break
 
-            sobi.labels_['line_noise'].append(iIC)
+            # Add to line_noise only if it is not already there
+            if iIC not in sobi.labels_['line_noise']:
+                sobi.labels_['line_noise'].append(iIC)
 
     # High
     '''

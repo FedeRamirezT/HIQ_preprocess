@@ -15,7 +15,7 @@ from sEEGnal.preprocess.badchannel_detection import badchannel_detection
 from scripts.shared.review_ICs import review_ICs
 
 # What step to run: standardize, badchannel, artifact, review IC
-run = [0, 0, 1, 1]
+run = [0, 0, 0, 1]
 
 # Init the database
 config, files, sub, ses, task = init()
