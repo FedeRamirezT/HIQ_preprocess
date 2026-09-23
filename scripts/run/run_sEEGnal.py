@@ -1,70 +1,34 @@
+"""Run the sEEGnal quickstart.
+
+Place BrainVision recordings in ``quickstart/data/sourcedata/eeg``, describe
+them in ``quickstart/data/recordings.tsv``, and then run:
+
+``python -m quickstart.run_sEEGnal``
 """
-Script to call automatic preprocess for all EEGs
 
-Federico Ramírez-Toraño
-28/10/2025
+from pathlib import Path
+import sys
 
-"""
 
-# Imports
-from init.init import init
-from sEEGnal.tools.bids_tools import build_BIDS_object
-from sEEGnal.standardize.standardize import standardize
-from sEEGnal.preprocess.artifact_detection import artifact_detection
-from sEEGnal.preprocess.badchannel_detection import badchannel_detection
-from scripts.shared.review_ICs import review_ICs
+if __package__ in (None, ''):
+    repository_root = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(repository_root))
 
-# What step to run: standardize, badchannel, artifact, review IC
-run = [0, 0, 0, 1]
+import scripts.run.init.init as init
+import sEEGnal
+from sEEGnal.io.recordings import RecordingsValidationError
+from sEEGnal.pipeline import PipelineConfigurationError
 
-# Init the database
-config, files, sub, ses, task = init()
 
-# List of subjects with errors
-errors = []
+def main():
+    """Load the quickstart configuration and run sEEGnal."""
 
-# Go through each subject
-index = range(len(files))
-for current_index in index:
+    try:
+        config = init.load_config()
+        sEEGnal.run_sEEGnal(config)
+    except (PipelineConfigurationError, RecordingsValidationError) as error:
+        raise SystemExit(f'Validation failed:\n{error}') from None
 
-    # current info
-    current_file = files[current_index]
-    current_sub = sub[current_index]
-    current_ses = ses[current_index]
-    current_task = task[current_index]
 
-    # Create the subjects following AI-Mind protocol
-    BIDS = build_BIDS_object(config, current_sub, current_ses, current_task)
-
-    print('Working with sub ' + current_sub + ' ses ' + current_ses + ' task ' + current_task)
-
-    # Run the selected processes
-    if run[0]:
-        print('   Standardize', end='. ')
-        results = standardize(config, current_file, BIDS)
-        print(' Result ' + results['result'])
-
-    if run[1]:
-        print('   Badchannel detection', end='. ')
-        results = badchannel_detection(config, BIDS)
-        print(' Result ' + results['result'])
-        if results['result'] == 'error' and config['global']['verbose'] == 'full':
-            print(results['details'])
-
-    if run[2]:
-        print('   Artifact Detection', end='. ')
-        results = artifact_detection(config, BIDS)
-        print(' Result ' + results['result'])
-        if results['result'] == 'error' and config['global']['verbose'] == 'full':
-            print(results['details'])
-
-    if run[3]:
-        print('   Review ICs', end='. ')
-        results = review_ICs(config, BIDS)
-        '''print(' Result ' + results['result'])
-        if results['result'] == 'error' and config['global']['verbose'] == 'full':
-            print(results['details'])'''
-
-    print()
-    print()
-    print()
+if __name__ == '__main__':
+    main()
