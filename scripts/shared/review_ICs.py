@@ -1,225 +1,144 @@
 """
-There are two noisy components in this dataset due to the experiment room.
-Review the ICs to look for these components.
+Reclassify independent components matching the experiment-specific
+low-frequency noise template.
 
-Federico Ramírez-Toraño
-10/06/2026
-
+This module belongs to the HIQ preprocessing project and is not part of
+the general sEEGnal component-classification logic.
 """
 
-# Imports
-import os
+import pathlib
 
+import mne
 import h5py
 import numpy
 
-import sEEGnal.tools.mne_tools as mne_tools
-import sEEGnal.tools.bids_tools as bids_tools
-from sEEGnal.tools.qc_tools import artifact_qc
 
+def review_ICs(raw, ica):
+    """
+    Reclassify ICs matching the low-frequency noise template.
 
-def review_ICs(config, BIDS):
+    Parameters
+    ----------
+    raw : mne.io.BaseRaw
+        Recording used to obtain the independent-component time series.
+        It must contain the same channels used to fit the ICA.
+    ica : mne.preprocessing.ICA
+        Fitted and already classified ICA object.
 
-    # Load low and high noisy ICs
-    fname = os.path.join('scripts','shared','templates','template_low_freq_noisy_IC.h5')
-    with h5py.File(fname, 'r') as h5:
-        freqs_low = h5['freqs'][:]
-        templates_low = h5['templates'][:]
-        metadata_low = h5['metadata'][:]
+    Returns
+    -------
+    ica : mne.preprocessing.ICA
+        The same ICA object, with matching components moved to the
+        ``line_noise`` label. ``labels_scores_`` remains unchanged.
+    """
 
-    fname = os.path.join('scripts', 'shared', 'templates', 'template_high_freq_noisy_IC.h5')
-    with h5py.File(fname, 'r') as h5:
-        freqs_high = h5['freqs'][:]
-        templates_high = h5['templates'][:]
-        metadata_high = h5['metadata'][:]
-
-
-    # Parameters for loading EEG recordings
-    config['subsystem'] = 'preprocess'
-    freq_limits = [
-        config['component_estimation']['low_freq'],
-        config['component_estimation']['high_freq']
-    ]
-    crop_seconds = config['component_estimation']['crop_seconds']
-    resample_frequency = config['component_estimation']['resample_frequency']
-    channels_to_include = config['global']["channels_to_include"]
-    channels_to_exclude = config['global']["channels_to_exclude"]
-    epoch_definition = {
-        'mode': 'fixed',
-        'length': 4,
-        'overlap': 0,
-        'padding': 0,
-        'reject_by_annotation': 1
-    }
-    set_annotations = True
-
-    # Load raw EEG
-    raw = mne_tools.prepare_eeg(
-        config,
-        BIDS,
-        preload=True,
-        channels_to_include=channels_to_include,
-        channels_to_exclude=channels_to_exclude,
-        notch_filter=True,
-        freq_limits=freq_limits,
-        resample_frequency=resample_frequency,
-        metadata_badchannels=True,
-        interpolate_badchannels=True,
-        set_annotations=set_annotations,
-        crop_seconds=crop_seconds,
-        rereference='average',
-        epoch_definition=epoch_definition
+    current_folder = pathlib.Path(__file__).resolve().parent
+    template_file = (
+        current_folder
+        / 'templates'
+        / 'template_low_freq_noisy_IC.h5'
     )
 
-    # Read SOBI
-    sobi = bids_tools.read_sobi(config, BIDS, raw, 'sobi')
-    ICs_time_series = sobi.get_sources(raw)
+    with h5py.File(template_file, 'r') as h5:
+        template_freqs = h5['freqs'][:]
+        templates = h5['templates'][:]
 
-    # Outputs
-    r_all_low = []
-    index_low = []
-    r_all_high = []
-    index_high = []
-    psd_low = []
-    psd_high = []
-    for iIC in range(len(ICs_time_series.picks)):
+    # Reproduce the four-second epochs used to create the templates.
+    epochs = mne.make_fixed_length_epochs(
+        raw,
+        duration=4,
+        overlap=0,
+        preload=True,
+        reject_by_annotation=True,
+        verbose=False,
+    )
 
-        # Get the current channel
-        current_IC_time_series = ICs_time_series.copy().pick(iIC)
+    # Obtain the independent-component time series for every epoch.
+    component_time_series = ica.get_sources(epochs)
 
-        ###################
-        # Low freq IC
-        ###################
+    matching_components = set()
 
-        # Estimate spectrum
-        n_samples = current_IC_time_series.get_data().shape[-1]
+    for component in range(ica.n_components_):
+
+        current_component = component_time_series.copy().pick([component])
+
+        # Keep these parameters identical to those used to create the
+        # experiment-specific templates.
+        n_samples = current_component.get_data().shape[-1]
         n_fft = min(2048, n_samples)
-        n_per_seg = n_fft
-        n_overlap = n_fft // 2
-        spectrum = current_IC_time_series.compute_psd(
+
+        spectrum = current_component.compute_psd(
             method='welch',
             fmin=2,
             fmax=45,
             picks='all',
             n_fft=n_fft,
-            n_per_seg=n_per_seg,
-            n_overlap=n_overlap
+            n_per_seg=n_fft,
+            n_overlap=n_fft // 2,
         ).average()
+
+        component_freqs = spectrum.freqs
         psd = spectrum.get_data(picks='all')[0]
+
+        # Minor differences in MNE's epoch construction can produce slightly
+        # different frequency grids. Resample the current PSD onto the exact
+        # grid used by the templates.
+        if (
+                psd.shape != template_freqs.shape
+                or not numpy.allclose(component_freqs, template_freqs)
+        ):
+            if (
+                    template_freqs[0] < component_freqs[0]
+                    or template_freqs[-1] > component_freqs[-1]
+            ):
+                raise ValueError(
+                    'The template frequency range is not covered by the '
+                    'component PSD. '
+                    f'Component range: {component_freqs[0]:.6f}-'
+                    f'{component_freqs[-1]:.6f} Hz; '
+                    f'template range: {template_freqs[0]:.6f}-'
+                    f'{template_freqs[-1]:.6f} Hz.'
+                )
+
+            psd = numpy.interp(
+                template_freqs,
+                component_freqs,
+                psd,
+            )
+
         psd = numpy.log10(psd + numpy.finfo(float).eps)
-        psd = (psd - psd.mean()) / psd.std()
+        psd_std = psd.std()
 
-        # Compare to the low ICs
-        for current_template in templates_low:
+        if psd_std == 0:
+            continue
 
-            r = numpy.corrcoef(current_template,psd)
-            r_all_low.append(r[0,1])
+        psd = (psd - psd.mean()) / psd_std
 
-            # Save the important ones
-            if r[0,1] > 0.8:
-                index_low.append(iIC)
-                psd_low.append(psd)
+        for template in templates:
+            correlation = numpy.corrcoef(template, psd)[0, 1]
 
-        ###################
-        # High freq IC
-        ###################
-        '''
-        spectrum = current_IC_time_series.compute_psd(
-            method='welch',
-            fmin=60,
-            fmax=100,
-            picks='all',
-            n_fft=n_fft,
-            n_per_seg=n_per_seg,
-            n_overlap=n_overlap
-        ).average()
-        psd = spectrum.get_data(picks='all')[0]
-        psd = numpy.log10(psd + numpy.finfo(float).eps)
-        psd = (psd - psd.mean()) / psd.std()
+            if correlation > 0.8:
+                matching_components.add(component)
+                break
 
-        # Compare to the high ICs
-        for current_template in templates_high:
-            r = numpy.corrcoef(current_template, psd)
-            r_all_high.append(r[0, 1])
+    # Move every match out of its previous category. Iterating through all
+    # existing categories also handles any additional labels created by MNE.
+    for component in matching_components:
+        for label, labeled_components in ica.labels_.items():
+            if label != 'line_noise' and component in labeled_components:
+                labeled_components.remove(component)
 
-            # Save the important ones
-            if r[0, 1] > 0.8:
-                index_high.append(iIC)
-                psd_high.append(psd)
-        '''
+        if component not in ica.labels_.setdefault('line_noise', []):
+            ica.labels_['line_noise'].append(component)
 
-    # Change the original labels if needed
-    labels_to_check = ['brain', 'muscle', 'eog', 'ecg', 'other', 'ch_noise']
+    ica.labels_['line_noise'].sort()
 
-    # Low
-    if len(index_low) > 0:
-
-        # Remove replicates
-        index_low = list(set(index_low))
-
-        for iIC in index_low:
-
-            # Remove from the original category
-            for current_label in labels_to_check:
-
-                if (
-                        current_label in sobi.labels_
-                        and iIC in sobi.labels_[current_label]
-                ):
-                    sobi.labels_[current_label].remove(iIC)
-                    break
-
-            # Add to line_noise only if it is not already there
-            if iIC not in sobi.labels_['line_noise']:
-                sobi.labels_['line_noise'].append(iIC)
-
-    # High
-    '''
-    if len(index_high) > 0:
-
-        # Remove replicates
-        index_high = list(set(index_high))
-
-        for iIC in index_high:
-
-            # Remove from the original category
-            for current_label in labels:
-
-                if iIC in sobi.labels_[current_label]:
-                    sobi.labels_[current_label].remove(iIC)
-                    break
-
-            sobi.labels_['line_noise'].append(iIC)
-    '''
+    return ica
 
 
-    # Save the new SOBI
-    _ = bids_tools.write_sobi(config, BIDS, sobi, 'sobi')
-
-    # Redo the QC figures
-    artifact_qc(config, BIDS)
-
-
-
-    '''
-    # Convert to array
-    r_all_low = numpy.asarray(r_all_low)
-    psd_low = numpy.asarray(psd_low).T
-    freqs_low = numpy.asarray(freqs_low)
-    r_all_high = numpy.asarray(r_all_high)
-    psd_high = numpy.asarray(psd_high).T
-    freqs_high = numpy.asarray(freqs_high)
-
-    plt.figure()
-    # Plot low
-    plt.subplot(2, 2, 1)
-    plt.plot(numpy.abs(r_all_low))
-    plt.subplot(2, 2, 2)
-    plt.plot(freqs_low, psd_low)
-    # Plot high
-    plt.subplot(2, 2, 3)
-    plt.plot(numpy.abs(r_all_high))
-    plt.subplot(2, 2, 4)
-    plt.plot(freqs_high, psd_high)
-    plt.show(block=True)
-    '''
+# High-frequency template matching is intentionally disabled for now.
+# Its future implementation should load:
+#
+# template_high_freq_noisy_IC.h5
+#
+# and reproduce the original 60–100 Hz comparison.

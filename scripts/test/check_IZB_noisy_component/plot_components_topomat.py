@@ -8,7 +8,7 @@ Federico Ramírez-Toraño
 
 # Imports
 import os
-from init.init import init
+from scripts.test.plots.init import init
 from sEEGnal.tools.bids_tools import build_BIDS_object
 import sEEGnal.tools.bids_tools as bids_tools
 import sEEGnal.tools.mne_tools as mne_tools
