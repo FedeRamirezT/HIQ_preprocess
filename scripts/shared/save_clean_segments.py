@@ -78,6 +78,10 @@ def main():
                 epoch_definition=epoch_definition
             )
 
+            # Annotations have already served their purpose.
+            # Remove them before exporting the clean dataset.
+            epochs.set_annotations(None)
+
 
             # Creates the derivatives folder, if required.
             outfile = bids_tools.build_derivatives_path(BIDS,'export','clean_segments.set')
