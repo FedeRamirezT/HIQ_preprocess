@@ -117,7 +117,7 @@ def review_ICs(raw, ica):
         for template in templates:
             correlation = numpy.corrcoef(template, psd)[0, 1]
 
-            if correlation > 0.8:
+            if correlation > 0.9:
                 matching_components.add(component)
                 break
 

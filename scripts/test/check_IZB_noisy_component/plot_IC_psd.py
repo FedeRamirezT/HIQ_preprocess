@@ -7,7 +7,7 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-from init.init import init
+from scripts.run.init.init import init
 import sEEGnal.tools.bids_tools as bids_tools
 import sEEGnal.tools.mne_tools as mne_tools
 
