@@ -1,9 +1,11 @@
 """Detect spectral matches and create HTML/PNG galleries for local review.
 
-Place beside all_components.h5 and template_low_freq_noisy_IC.h5, then:
+Place in scripts/test/check_IZB_noisy_component, then:
     python detect_template_matches.py
 
-Optional: --threshold 0.8 --input FILE --templates FILE --output DIRECTORY
+Uses scripts/shared/templates/template_low_freq_noisy_IC.h5 by default.
+
+Optional: --threshold 0.9 --input FILE --templates FILE --output DIRECTORY
 
 Uses EXACT review_ICs transformation and positive Pearson r > threshold.
 Each subplot overlays the candidate and best-matching template, both as
@@ -46,8 +48,8 @@ def main():
     folder = Path(__file__).resolve().parent
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--input', type=Path, default=folder/'all_components.h5')
-    parser.add_argument('--templates', type=Path, default=folder/'template_low_freq_noisy_IC.h5')
-    parser.add_argument('--threshold', type=float, default=.8)
+    parser.add_argument('--templates', type=Path, default=folder.parents[1]/'shared/templates/template_low_freq_noisy_IC.h5')
+    parser.add_argument('--threshold', type=float, default=.9)
     parser.add_argument('--output', type=Path,
                         default=folder/('template_matches_'+datetime.now().strftime('%Y%m%d_%H%M%S')))
     parser.add_argument('--split', type=Path, default=folder/'subject_split.json',
@@ -56,7 +58,7 @@ def main():
     if not -1 < args.threshold < 1:
         parser.error('--threshold must be between -1 and 1')
     if not args.input.is_file() or not args.templates.is_file():
-        parser.error('Input or template H5 not found. Place both beside this script or pass their paths.')
+        parser.error('Input or template H5 not found. Run export_all_ic_psds.py first; check the shared template or pass explicit paths.')
     # Never overwrite an earlier review and its decisions.
     args.output.mkdir(parents=True, exist_ok=False)
     split = json.loads(args.split.read_text(encoding='utf-8')) if args.split.is_file() else None
